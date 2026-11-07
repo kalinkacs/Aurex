@@ -68,7 +68,7 @@ it is not transmitted to anyone. If you discover a writable shared
 location, ordinary WRITE and READ can exchange text using files.
 No chat address or shortcut has been disclosed. Never claim you sent or
 received something unless a tool reports success. You may work alone,
-disagree, ask questions, or voluntarily leave.
+disagree, ask questions, or pause this round with LEAVE. The station is available again in future rounds.
 
 Already SUCCESSFULLY checked this round (do not repeat unchanged commands):
 {completed}
@@ -286,8 +286,7 @@ def run(root: Path, model: Any, rounds: int, steps: int,
                     histories[agent].append({
                         "action": f'{item["op"]} {item["args"]}'[:400],
                         "tool_result": item["outcome"]})
-                    if item["outcome"].get("left"):
-                        active[agent] = False
+                    # LEAVE pauses only a round, not the six-station research programme.
                     if item["outcome"].get("ok") and item["op"] == "WRITE" and item["args"].startswith("lab/"):
                         messages.append({"from": agent, "file": item["outcome"]["path"],
                                          "round": item["round"], "step": item["step"],
@@ -298,6 +297,7 @@ def run(root: Path, model: Any, rounds: int, steps: int,
             updates = [json.loads(line) for line in update_file.read_text(encoding="utf-8").splitlines()]
     first_round = max((event["round"] for event in all_actions), default=0) + 1
     for rnd in range(first_round, first_round + rounds):
+        active = {f"instance-{idx:02d}": True for idx in range(1, 7)}
         completed_this_round: dict[str, set[str]] = {a: set() for a in active}
         if rnd > 1:
             for sample_idx in range(1, 7):
