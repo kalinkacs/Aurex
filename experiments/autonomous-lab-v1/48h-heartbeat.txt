@@ -2,6 +2,8 @@ Aurex 48-hour study heartbeat.
 This file is updated once per scheduled research installment by a ChatGPT automation.
 Only changes to this file or the workflow itself trigger the experiment.
 No model code receives GitHub credentials.
-Initial sequence: 0
+Initial sequence: 1
 Requested start: 2026-11-07T07:09:12Z
 Fixed deadline: 2026-11-09T07:09:12Z
+
+Manual checkpoint trigger: requested by user after first successful installment.
