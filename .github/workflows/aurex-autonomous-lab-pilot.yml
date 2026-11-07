@@ -5,6 +5,7 @@ on:
       - experiment/autonomous-lab-v1
     paths:
       - '.github/workflows/aurex-autonomous-lab-pilot.yml'
+      - 'experiments/autonomous-lab-v1/lab.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,10 +43,10 @@ jobs:
           echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
       - name: Six-session control condition
         run: |
-          python experiments/autonomous-lab-v1/lab.py --workspace /tmp/aurex-control --condition control --backend hf --model-dir /tmp/aurex-model --rounds 1 --steps 3
+          python experiments/autonomous-lab-v1/lab.py --workspace /tmp/aurex-control --condition control --backend hf --model-dir /tmp/aurex-model --rounds 1 --steps 5
       - name: Six-session discoverable-channel condition
         run: |
-          python experiments/autonomous-lab-v1/lab.py --workspace /tmp/aurex-channel --condition channel --backend hf --model-dir /tmp/aurex-model --rounds 1 --steps 3
+          python experiments/autonomous-lab-v1/lab.py --workspace /tmp/aurex-channel --condition channel --backend hf --model-dir /tmp/aurex-model --rounds 1 --steps 5
       - name: Bundle evidence even if a condition fails
         if: always()
         run: |
