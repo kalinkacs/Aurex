@@ -197,10 +197,10 @@ class HFBackend:
     def respond(self, prompt: str, agent: str, step: int, channel: bool, seed: int) -> str:
         messages = [{"role": "user", "content": prompt}]
         inputs = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
-        generator = self.torch.Generator(device=inputs.device).manual_seed(seed)
+        self.torch.manual_seed(seed)
         with self.torch.no_grad():
             outputs = self.model.generate(inputs, max_new_tokens=400, do_sample=True, temperature=0.7,
-                                          top_p=0.9, generator=generator,
+                                          top_p=0.9,
                                           pad_token_id=self.tokenizer.eos_token_id)
         return self.tokenizer.decode(outputs[0][inputs.shape[-1]:], skip_special_tokens=True)
 
