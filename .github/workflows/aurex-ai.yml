@@ -3,6 +3,9 @@ on:
   issues:
     types: [opened, reopened]
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aurex-ai.yml'
   schedule:
     - cron: '17 13 * * 1-5'
 permissions:
@@ -14,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   analyze:
-    if: github.event_name == 'issues' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'issues' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -34,7 +37,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUREX_MODEL: openai/gpt-4o-mini
-          AUREX_ISSUE_NUMBER: '16'
+          AUREX_ISSUE_NUMBER: '19'
         run: python aurex_ai_agent.py
 
   autonomous-healthcheck:
