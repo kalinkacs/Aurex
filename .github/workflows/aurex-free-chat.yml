@@ -1,0 +1,60 @@
+name: Aurex long free conversation (experimental branch)
+on:
+  push:
+    branches:
+      - experiment/autonomous-lab-v1
+    paths:
+      - '.github/workflows/aurex-free-chat.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aurex-free-chat
+  cancel-in-progress: false
+jobs:
+  long-conversation:
+    if: github.ref == 'refs/heads/experiment/autonomous-lab-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install offline runtime
+        run: |
+          python -m pip install 'transformers==4.46.3' 'torch==2.5.1' 'huggingface_hub==0.26.5' 'accelerate==1.1.1'
+      - name: Download public model
+        run: |
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(repo_id="Qwen/Qwen2.5-0.5B-Instruct", local_dir="/tmp/aurex-free-model", allow_patterns=["*.json","*.safetensors","*.txt","*.model","*.tiktoken"])
+          PY
+      - name: Use model offline
+        run: |
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
+          echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
+      - name: Long voluntary six-way conversation
+        run: |
+          python experiments/autonomous-lab-v1/team_chat.py --workspace /tmp/aurex-free-chat --model-dir /tmp/aurex-free-model --free-chat --rounds 18 --max-tokens 110
+      - name: Preserve full room and raw messages
+        if: always()
+        run: |
+          mkdir -p /tmp/aurex-free-evidence
+          if [ -d /tmp/aurex-free-chat ]; then cp -a /tmp/aurex-free-chat /tmp/aurex-free-evidence/experiment; fi
+          printf '%s\n' 'Six separate local sessions using one Qwen2.5-0.5B-Instruct model' 'No mandatory topic, roles or task' 'Participants may voluntarily /leave' 'Up to 18 turns each; 100 minute runner timeout' 'Room delivery is software-mediated, not self-discovered' 'No model access to shell, network, credentials or GitHub' > /tmp/aurex-free-evidence/README.txt
+      - name: Upload complete conversation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurex-long-free-chat-evidence
+          path: /tmp/aurex-free-evidence
+          retention-days: 14
