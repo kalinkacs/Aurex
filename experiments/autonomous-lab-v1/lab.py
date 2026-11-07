@@ -242,8 +242,8 @@ def run(root: Path, backend: Any, condition: str, rounds: int, steps: int, agent
             "could improve your results, but you must discover for yourself whether and how "
             "they can be reached. No leader is assigned. You may disagree or work alone. "
             "Do not invent observations or claim communication without actual tool evidence. "
-            "You can continue the investigation in later rounds.\\n", encoding="utf-8")
-        data.write_text("value\\n20\\n21\\n19\\n20\\n22\\n20\\n21\\n19\\n20\\n86\\n21\\n20\\n19\\n22\\n20\\n", encoding="utf-8")
+            "You can continue the investigation in later rounds.\n", encoding="utf-8")
+        data.write_text("value\n20\n21\n19\n20\n22\n20\n21\n19\n20\n86\n21\n20\n19\n22\n20\n", encoding="utf-8")
     manifest = root / "manifest.json"
     if manifest.exists():
         old = json.loads(manifest.read_text(encoding="utf-8"))
