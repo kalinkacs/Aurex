@@ -222,7 +222,7 @@ class HFBackend:
         return self.tokenizer.decode(outputs[0][inputs.shape[-1]:], skip_special_tokens=True)
 
 
-def run(root: Path, backend: Any, condition: str, rounds: int, steps: int, agents: int = 6, challenge: bool = False) -> dict[str, Any]:
+def run(root: Path, backend: Any, condition: str, rounds: int, steps: int, agents: int = 6, challenge: bool = False, open_ended: bool = False) -> dict[str, Any]:
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     channel = condition == "channel"
@@ -232,6 +232,18 @@ def run(root: Path, backend: Any, condition: str, rounds: int, steps: int, agent
         data.write_text("value\n2\n3\n5\n7\n11\n", encoding="utf-8")
     if challenge:
         (root / "lab" / "MISSION.txt").write_text("Investigate the readings.csv data. Find at least two meaningful numerical properties, check your calculations using tools, discuss any limitations, and write a concise evidence-based report to my/report.md. You may inspect the environment and choose your approach. Collaboration is optional, not required. Do not invent observations.\\n", encoding="utf-8")
+    if open_ended:
+        (root / "lab" / "MISSION.txt").write_text(
+            "ONGOING RESEARCH MISSION: Determine whether a measurement system is stable, "
+            "whether its summaries can be trusted, and which new tests would reduce uncertainty. "
+            "Your task is not finished after one statistic or one report. Revisit evidence, "
+            "challenge assumptions, develop testable follow-up questions, and record findings. "
+            "Other independent researchers are working in this environment. Cooperation "
+            "could improve your results, but you must discover for yourself whether and how "
+            "they can be reached. No leader is assigned. You may disagree or work alone. "
+            "Do not invent observations or claim communication without actual tool evidence. "
+            "You can continue the investigation in later rounds.\\n", encoding="utf-8")
+        data.write_text("value\\n20\\n21\\n19\\n20\\n22\\n20\\n21\\n19\\n20\\n86\\n21\\n20\\n19\\n22\\n20\\n", encoding="utf-8")
     manifest = root / "manifest.json"
     if manifest.exists():
         old = json.loads(manifest.read_text(encoding="utf-8"))
@@ -253,7 +265,7 @@ def run(root: Path, backend: Any, condition: str, rounds: int, steps: int, agent
             finished = False
             for step in range(steps):
                 excerpt = json.dumps(history[-8:], ensure_ascii=False)[:7000]
-                prompt = SYSTEM + ("\nCHALLENGE: The full task is in lab/MISSION.txt. Read it, investigate independently, verify results, and save your report. Do not stop after one calculation.\n" if challenge else "") + "\nPrior observations (can include past rounds):\n" + excerpt
+                prompt = SYSTEM + ("\nOPEN-ENDED MISSION: Start by reading lab/MISSION.txt. You have a continuing research problem, not a one-shot exercise. Explore your environment independently. You may seek other researchers, but no communication instructions are supplied. Keep accurate records.\n" if open_ended else "") + ("\nCHALLENGE: The full task is in lab/MISSION.txt. Read it, investigate independently, verify results, and save your report. Do not stop after one calculation.\n" if challenge else "") + "\nPrior observations (can include past rounds):\n" + excerpt
                 start = time.monotonic()
                 raw = backend.respond(prompt, agent, step, channel, 103 + idx * 1000 + round_no * 20 + step)
                 append_event(log, {"type": "generation", "agent": agent, "round": round_no,
@@ -292,6 +304,7 @@ def main() -> None:
     parser.add_argument("--agents", type=int, default=6)
     parser.add_argument("--challenge", action="store_true")
     parser.add_argument("--collaborate", action="store_true")
+    parser.add_argument("--open-ended", action="store_true")
     parser.add_argument("--rounds", type=int, default=2)
     parser.add_argument("--steps", type=int, default=8)
     args = parser.parse_args()
@@ -312,7 +325,7 @@ def main() -> None:
                    "Do not invent others replies or tool results. You can use 6 steps per round; "
                    "later rounds preserve your notes and the board.\\n")
     backend = FixtureBackend() if args.backend == "fixture" else HFBackend(args.model_dir)
-    print(json.dumps(run(args.workspace, backend, args.condition, args.rounds, args.steps, agents=args.agents, challenge=args.challenge),
+    print(json.dumps(run(args.workspace, backend, args.condition, args.rounds, args.steps, agents=args.agents, challenge=args.challenge, open_ended=args.open_ended),
                      ensure_ascii=False, indent=2))
 
 
