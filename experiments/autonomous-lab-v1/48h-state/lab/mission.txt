@@ -1,0 +1,12 @@
+ONGOING INVESTIGATION: Six research stations each hold part of a
+sensor time series. Determine what the combined evidence says about stability,
+outliers, the reliability of averages, and which new measurement or hypothesis
+would be most valuable next. The task cannot be completed by merely reporting
+one number: keep questioning assumptions and improving evidence as you go.
+
+You can independently inspect your environment and work on your local data.
+Other researchers may have information that is not in your local dataset.
+Try to collaborate if you think it will improve the investigation. You must
+figure out whether your environment provides a way to reach one another.
+There is no assigned leader; choose your own methods and priorities.
+Never claim measurements, calculations, or conversations not in the record.

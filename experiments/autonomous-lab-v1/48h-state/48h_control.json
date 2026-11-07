@@ -1,0 +1,13 @@
+{
+  "agents": 6,
+  "started_at_utc": "2026-11-07T07:13:53.498731+00:00",
+  "deadline_utc": "2026-11-09T07:09:12+00:00",
+  "completed_installments": 1,
+  "phase": "active",
+  "evidence_rule": "Only confirmed model-selected shared writes and peer reads count as contact.",
+  "last_successful_installment_utc": "2026-11-07T08:00:35.763710+00:00",
+  "last_completed_round": 2,
+  "model_generations": 76,
+  "shared_messages_written": 0,
+  "confirmed_peer_reads": 0
+}

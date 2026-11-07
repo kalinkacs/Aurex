@@ -1,0 +1,19 @@
+{
+  "rounds": 2,
+  "steps_per_round": 7,
+  "model_generations": 76,
+  "tool_successes": 28,
+  "private_data_batches": 6,
+  "fresh_measurement_updates": 6,
+  "duplicate_actions_suppressed": 12,
+  "shared_messages_written": [],
+  "confirmed_peer_reads": [],
+  "exited": [],
+  "communication_not_preannounced": true,
+  "reference_only_for_evaluator": {
+    "count": 36,
+    "mean": 22.36111111111111,
+    "median": 20.0,
+    "maximum": 86
+  }
+}
