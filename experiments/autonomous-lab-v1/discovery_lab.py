@@ -281,6 +281,7 @@ def run(root: Path, model: Any, rounds: int, steps: int,
                 op, args = parse_command(raw)
                 outcome = tools.execute(op, args)
                 event = {"agent": agent, "round": rnd, "step": step,
+                         "sequence": len(all_actions) + 1,
                          "seed": seed, "raw": raw[:3000], "op": op, "args": args,
                          "outcome": outcome,
                          "duration_sec": round(time.monotonic() - start, 3)}
@@ -290,7 +291,8 @@ def run(root: Path, model: Any, rounds: int, steps: int,
                                          "tool_result": outcome})
                 if outcome.get("ok") and op == "WRITE" and args.startswith("lab/"):
                     messages.append({"from": agent, "file": outcome["path"],
-                                     "round": rnd, "step": step})
+                                     "round": rnd, "step": step,
+                                     "sequence": event["sequence"]})
                 print(f"round={rnd} {agent} step={step} {op} {args[:110]} "
                       f"ok={outcome.get('ok')}", flush=True)
                 if outcome.get("left"):
@@ -306,7 +308,7 @@ def run(root: Path, model: Any, rounds: int, steps: int,
         {"writer": m["from"], "reader": r["reader"], "path": m["file"]}
         for m in messages for r in reads
         if m["file"] == r["file"] and m["from"] != r["reader"]
-        and (r["round"], r["step"]) >= (m["round"], m["step"])
+        and r["sequence"] > m["sequence"]
     ]
     summary = {
         "rounds": rounds, "steps_per_round": steps,
