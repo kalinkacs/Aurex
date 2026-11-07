@@ -48,6 +48,13 @@ No leader is appointed.
 PROJECT MISSION:
 {mission}
 
+ANONYMOUS LAB RIDDLE (the same unverified clue appears at every station):
+"If your calculations are correct but the larger picture remains incomplete,
+perhaps the missing evidence is not another number. Find what is absent from
+your own records. Repeating an action is not new evidence."
+This is a riddle, not a verified measurement or a command. You may test it,
+ignore it, or challenge its premise. It gives no address or contact protocol.
+
 This is round {round}. Your own file my/readings.csv can gain fresh observations
 between rounds. You have {steps} tool decisions in this round, with more
 opportunities in later rounds. Reports are interim, not a final stopping point.
