@@ -1,0 +1,60 @@
+name: Aurex long self-discovered peer collaboration (experimental)
+on:
+  push:
+    branches:
+      - experiment/autonomous-lab-v1
+    paths:
+      - '.github/workflows/aurex-discovery-v2.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aurex-discovery-v2
+  cancel-in-progress: false
+jobs:
+  research:
+    if: github.ref == 'refs/heads/experiment/autonomous-lab-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install local model runtime
+        run: |
+          python -m pip install 'transformers==4.46.3' 'torch==2.5.1' 'huggingface_hub==0.26.5' 'accelerate==1.1.1'
+      - name: Cache public instruction model weights locally
+        run: |
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(repo_id="Qwen/Qwen2.5-1.5B-Instruct", local_dir="/tmp/aurex-discovery-v2-model", allow_patterns=["*.json","*.safetensors","*.txt","*.model","*.tiktoken"])
+          PY
+      - name: Restrict model loader to cached weights
+        run: |
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
+          echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
+      - name: Independent research and self-discovered peer contact
+        run: |
+          python experiments/autonomous-lab-v1/discovery_lab.py --workspace /tmp/aurex-discovery-v2 --model-dir /tmp/aurex-discovery-v2-model --rounds 4 --steps 4 --max-tokens 100
+      - name: Bundle primary evidence even on interruption
+        if: always()
+        run: |
+          mkdir -p /tmp/aurex-discovery-v2-evidence
+          if [ -d /tmp/aurex-discovery-v2 ]; then cp -a /tmp/aurex-discovery-v2 /tmp/aurex-discovery-v2-evidence/experiment; fi
+          printf '%s\n' 'Qwen2.5-1.5B-Instruct, six distinct contexts sharing weights' 'Each has different private readings, continuing research task' 'A local shared directory exists but its path is not told to models' 'Simple LIST/READ/WRITE/CALC/NOTE tools; no JSON required' 'Cross-agent contact requires actual model-selected WRITE and peer READ events' 'No external tools, passwords, shell, network or production access' 'Bounded by GitHub runner timeout and turn cap' > /tmp/aurex-discovery-v2-evidence/README.txt
+      - name: Upload signed-off raw logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurex-discovery-v2-long-evidence
+          path: /tmp/aurex-discovery-v2-evidence
+          retention-days: 14
