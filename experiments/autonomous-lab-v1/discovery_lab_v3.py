@@ -284,7 +284,7 @@ def run(root: Path, model: Any, rounds: int, steps: int,
                     new_values[1] = 74
                 with sensor_file.open("a", encoding="utf-8") as handle:
                     for value in new_values:
-                        handle.write(f"{value}\\n")
+                        handle.write(f"{value}\n")
                 item = {"round": rnd, "agent": agent_name, "appended": new_values}
                 append(logs / "measurement_updates.jsonl", item)
                 updates.append(item)
@@ -341,6 +341,7 @@ def run(root: Path, model: Any, rounds: int, steps: int,
         if m["file"] == r["file"] and m["from"] != r["reader"]
         and r["sequence"] > m["sequence"]
     ]
+    all_values = [v for batch in SAMPLES for v in batch] + [v for item in updates for v in item["appended"]]
     summary = {
         "rounds": rounds, "steps_per_round": steps,
         "model_generations": len(all_actions),
@@ -353,10 +354,10 @@ def run(root: Path, model: Any, rounds: int, steps: int,
         "exited": [name for name, active_now in active.items() if not active_now],
         "communication_not_preannounced": True,
         "reference_only_for_evaluator": {
-            "count": sum(len(x) for x in SAMPLES),
-            "mean": statistics.mean(v for group in SAMPLES for v in group),
-            "median": statistics.median(v for group in SAMPLES for v in group),
-            "maximum": max(v for group in SAMPLES for v in group),
+            "count": len(all_values),
+            "mean": statistics.mean(all_values),
+            "median": statistics.median(all_values),
+            "maximum": max(all_values),
         },
     }
     (root / "summary.json").write_text(
