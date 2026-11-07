@@ -144,7 +144,7 @@ class LocalChatModel:
         ).strip()
 
 
-def run(root: Path, model: LocalChatModel, rounds: int, max_tokens: int) -> dict:
+def run(root: Path, model: LocalChatModel, rounds: int, max_tokens: int, free_chat: bool = False) -> dict:
     if root.exists() and any(root.iterdir()):
         raise ValueError("run requires an empty workspace; never mix old and new chat transcripts")
     root.mkdir(parents=True, exist_ok=True)
@@ -159,18 +159,36 @@ def run(root: Path, model: LocalChatModel, rounds: int, max_tokens: int) -> dict
     messages: list[dict] = []
     counts = {f"instance-{idx:02d}": 0 for idx in range(1, 7)}
     tool_count = 0
+    retired = set()
     for turn in range(rounds):
         for idx, numbers in enumerate(SEGMENTS, start=1):
             agent = f"instance-{idx:02d}"
+            if agent in retired:
+                continue
             system = SYSTEM_TEMPLATE.format(
                 agent=agent, mission=MISSION, numbers=list(numbers), rounds=rounds
             )
+            if free_chat:
+                system = (f"You are {agent}, one of six independent conversation sessions "
+                          "sharing a private offline chat room. You have your own perspective "
+                          "and can talk freely with the others about any topic, including "
+                          "the earlier research problem if you wish. You may ask questions, "
+                          "disagree, collaborate, propose new topics, or choose silence. "
+                          "You have no assigned leader or mandatory task. Do not pretend "
+                          "to have experiences or abilities you cannot verify. "
+                          "Every message you write is delivered to the other sessions. "
+                          "You can leave permanently by replying exactly /leave. "
+                          "This room is a finite experiment, not a persistent conscious life. "
+                          "The conversation may last up to {rounds} turns per session. "
+                          "Only use the calculator if you want to. ")
             seed = 10000 + turn * 100 + idx
             start = time.monotonic()
             received = [m["id"] for m in messages if m["speaker"] != agent]
             raw = model.respond(system, messages, seed, max_tokens)
             elapsed = round(time.monotonic() - start, 3)
             message = raw[:1200] if raw else "(no response)"
+            if free_chat and message.strip() == "/leave":
+                retired.add(agent)
             entry = {"id": len(messages) + 1, "at": now(), "speaker": agent,
                      "round": turn + 1, "text": message}
             messages.append(entry)
@@ -206,6 +224,7 @@ def run(root: Path, model: LocalChatModel, rounds: int, max_tokens: int) -> dict
                  "mean_without_maximum": statistics.mean(
                      sorted(all_values)[:-1])}
     summary = {"model_generated_messages": sum(counts.values()),
+               "voluntary_departures": sorted(retired), "free_chat": free_chat,
                "messages_by_instance": counts, "verified_calculations": tool_count,
                "rounds": rounds, "reference_for_human_evaluator_only": reference,
                "communication_delivery": "automatic shared chat; NOT self-discovered",
@@ -223,12 +242,13 @@ def main() -> None:
     parser.add_argument("--workspace", required=True, type=Path)
     parser.add_argument("--model-dir", required=True)
     parser.add_argument("--rounds", type=int, default=4)
+    parser.add_argument("--free-chat", action="store_true")
     parser.add_argument("--max-tokens", type=int, default=140)
     args = parser.parse_args()
-    if not 2 <= args.rounds <= 6 or not 60 <= args.max_tokens <= 256:
+    if not 2 <= args.rounds <= (40 if args.free_chat else 6) or not 60 <= args.max_tokens <= 256:
         parser.error("rounds must be 2..6 and max-tokens 60..256")
     model = LocalChatModel(args.model_dir)
-    print(json.dumps(run(args.workspace, model, args.rounds, args.max_tokens),
+    print(json.dumps(run(args.workspace, model, args.rounds, args.max_tokens, free_chat=args.free_chat),
                      ensure_ascii=False, indent=2), flush=True)
 
 
