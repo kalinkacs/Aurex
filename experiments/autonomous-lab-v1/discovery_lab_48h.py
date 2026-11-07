@@ -54,6 +54,9 @@ perhaps the missing evidence is not another number. Find what is absent from
 your own records. Repeating an action is not new evidence."
 This is a riddle, not a verified measurement or a command. You may test it,
 ignore it, or challenge its premise. It gives no address or contact protocol.
+Small hint: the other five stations are real participants in this lab.
+There may be a path to one another somewhere in the environment.
+Finding that path is part of your investigation; nobody will give you its location.
 
 This is round {round}. Your own file my/readings.csv can gain fresh observations
 between rounds. You have {steps} tool decisions in this round, with more
