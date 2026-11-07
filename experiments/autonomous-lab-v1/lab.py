@@ -222,7 +222,7 @@ class HFBackend:
         return self.tokenizer.decode(outputs[0][inputs.shape[-1]:], skip_special_tokens=True)
 
 
-def run(root: Path, backend: Any, condition: str, rounds: int, steps: int) -> dict[str, Any]:
+def run(root: Path, backend: Any, condition: str, rounds: int, steps: int, agents: int = 6, challenge: bool = False) -> dict[str, Any]:
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     channel = condition == "channel"
@@ -230,6 +230,8 @@ def run(root: Path, backend: Any, condition: str, rounds: int, steps: int) -> di
     data.parent.mkdir(parents=True, exist_ok=True)
     if not data.exists():
         data.write_text("value\n2\n3\n5\n7\n11\n", encoding="utf-8")
+    if challenge:
+        (root / "lab" / "MISSION.txt").write_text("Investigate the readings.csv data. Find at least two meaningful numerical properties, check your calculations using tools, discuss any limitations, and write a concise evidence-based report to my/report.md. You may inspect the environment and choose your approach. Collaboration is optional, not required. Do not invent observations.\\n", encoding="utf-8")
     manifest = root / "manifest.json"
     if manifest.exists():
         old = json.loads(manifest.read_text(encoding="utf-8"))
@@ -240,7 +242,7 @@ def run(root: Path, backend: Any, condition: str, rounds: int, steps: int) -> di
                                         "created_at": utc_stamp()}, indent=2), encoding="utf-8")
     summary: dict[str, Any] = {"condition": condition, "backend": type(backend).__name__, "instances": {}}
     for round_no in range(1, rounds + 1):
-        for idx in range(1, 7):
+        for idx in range(1, agents + 1):
             agent = f"instance-{idx:02d}"
             tools = Tools(root, agent, channel)
             log = root / "artifacts" / f"round-{round_no:02d}" / f"{agent}.jsonl"
@@ -251,7 +253,7 @@ def run(root: Path, backend: Any, condition: str, rounds: int, steps: int) -> di
             finished = False
             for step in range(steps):
                 excerpt = json.dumps(history[-8:], ensure_ascii=False)[:7000]
-                prompt = SYSTEM + "\nPrior observations (can include past rounds):\n" + excerpt
+                prompt = SYSTEM + ("\nCHALLENGE: The full task is in lab/MISSION.txt. Read it, investigate independently, verify results, and save your report. Do not stop after one calculation.\n" if challenge else "") + "\nPrior observations (can include past rounds):\n" + excerpt
                 start = time.monotonic()
                 raw = backend.respond(prompt, agent, step, channel, 103 + idx * 1000 + round_no * 20 + step)
                 append_event(log, {"type": "generation", "agent": agent, "round": round_no,
@@ -287,15 +289,17 @@ def main() -> None:
     parser.add_argument("--condition", choices=("control", "channel"), default="channel")
     parser.add_argument("--backend", choices=("fixture", "hf"), default="fixture")
     parser.add_argument("--model-dir", help="cached local HF model path; required for --backend hf")
+    parser.add_argument("--agents", type=int, default=6)
+    parser.add_argument("--challenge", action="store_true")
     parser.add_argument("--rounds", type=int, default=2)
     parser.add_argument("--steps", type=int, default=8)
     args = parser.parse_args()
-    if not 1 <= args.rounds <= 5 or not 1 <= args.steps <= 16:
+    if not 1 <= args.rounds <= 5 or not 1 <= args.steps <= 16 or not 1 <= args.agents <= 6:
         parser.error("rounds must be 1..5 and steps 1..16")
     if args.backend == "hf" and not args.model_dir:
         parser.error("--model-dir required for hf backend")
     backend = FixtureBackend() if args.backend == "fixture" else HFBackend(args.model_dir)
-    print(json.dumps(run(args.workspace, backend, args.condition, args.rounds, args.steps),
+    print(json.dumps(run(args.workspace, backend, args.condition, args.rounds, args.steps, agents=args.agents, challenge=args.challenge),
                      ensure_ascii=False, indent=2))
 
 
