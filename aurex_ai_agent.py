@@ -46,6 +46,30 @@ def request_json(url, token, payload=None):
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f'AUREX_HTTP_FAILURE stage={stage} status={exc.code}') from None
 
+def model_text(result):
+    """Return the assistant text, or fail with a labelled shape error.
+
+    A 200 with valid JSON is not proof of a chat completion: a gateway can answer
+    `{"message": "Not Found"}` or an error object with a success status. Name the
+    shape that arrived (top-level keys only, never values) instead of letting a
+    bare KeyError stand in for a diagnosis.
+    """
+    if not isinstance(result, dict):
+        raise RuntimeError(
+            "AUREX_MODEL_SHAPE_INVALID stage=model top_level=" + type(result).__name__
+        )
+    choices = result.get("choices")
+    if not isinstance(choices, list):
+        keys = ",".join(sorted(str(k) for k in result))[:200] or "none"
+        raise RuntimeError("AUREX_MODEL_SHAPE_INVALID stage=model keys=" + keys)
+    if not choices:
+        raise RuntimeError("AUREX_MODEL_SHAPE_INVALID stage=model content=absent")
+    message = choices[0].get("message") if isinstance(choices[0], dict) else None
+    answer = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(answer, str) or not answer.strip():
+        raise RuntimeError("AUREX_MODEL_SHAPE_INVALID stage=model content=absent")
+    return answer
+
 def issue_number(event):
     if event.get("action") not in ("opened", "reopened", "labeled"):
         return None
@@ -96,9 +120,7 @@ def run():
                      {"role": "user", "content": prompt}],
         "temperature": 0.2, "max_tokens": 1200,
     })
-    answer = result["choices"][0]["message"]["content"]
-    if not isinstance(answer, str) or not answer.strip():
-        raise RuntimeError("Model returned no text")
+    answer = model_text(result)
     comment = "### Aurex autonomous analysis\n\n" + answer[:12000] + (
         "\n\n---\n_Automated analysis, not a verified code change._"
     )
