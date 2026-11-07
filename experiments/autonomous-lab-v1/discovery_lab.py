@@ -303,7 +303,8 @@ def run(root: Path, model: Any, rounds: int, steps: int,
         if (event["op"] == "READ" and event["outcome"].get("ok")
                 and event["args"].startswith("lab/")):
             reads.append({"reader": event["agent"], "file": event["args"],
-                          "round": event["round"], "step": event["step"]})
+                          "round": event["round"], "step": event["step"],
+                          "sequence": event["sequence"]})
     confirmed = [
         {"writer": m["from"], "reader": r["reader"], "path": m["file"]}
         for m in messages for r in reads
