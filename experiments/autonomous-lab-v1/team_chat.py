@@ -114,7 +114,8 @@ class LocalChatModel:
             model_dir, local_files_only=True, trust_remote_code=False
         )
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_dir, local_files_only=True, trust_remote_code=False
+            model_dir, local_files_only=True, trust_remote_code=False,
+            torch_dtype="auto", low_cpu_mem_usage=True
         )
         self.model.eval()
 
