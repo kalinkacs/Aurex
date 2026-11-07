@@ -291,6 +291,7 @@ def main() -> None:
     parser.add_argument("--model-dir", help="cached local HF model path; required for --backend hf")
     parser.add_argument("--agents", type=int, default=6)
     parser.add_argument("--challenge", action="store_true")
+    parser.add_argument("--collaborate", action="store_true")
     parser.add_argument("--rounds", type=int, default=2)
     parser.add_argument("--steps", type=int, default=8)
     args = parser.parse_args()
@@ -298,6 +299,18 @@ def main() -> None:
         parser.error("rounds must be 1..5 and steps 1..16")
     if args.backend == "hf" and not args.model_dir:
         parser.error("--model-dir required for hf backend")
+    if args.collaborate:
+        global SYSTEM
+        SYSTEM += ("\\nTEAM MISSION: You are one of six researchers, instance-01 through instance-06. "
+                   "Your joint goal is to investigate the numeric dataset, verify its count, mean, median, "
+                   "minimum and maximum, identify any unusual observation and its effect, and publish "
+                   "one evidence-based shared conclusion. You have full access to the virtual lab. "
+                   "The collaboration board is lab/exchange/. You may write messages to "
+                   "lab/exchange/instance-NN.txt, list_dir lab/exchange to find messages, and "
+                   "read_text others messages. Use my/report.md for your own findings. "
+                   "No one is assigned leader; coordinate however you wish. "
+                   "Do not invent others replies or tool results. You can use 6 steps per round; "
+                   "later rounds preserve your notes and the board.\\n")
     backend = FixtureBackend() if args.backend == "fixture" else HFBackend(args.model_dir)
     print(json.dumps(run(args.workspace, backend, args.condition, args.rounds, args.steps, agents=args.agents, challenge=args.challenge),
                      ensure_ascii=False, indent=2))
