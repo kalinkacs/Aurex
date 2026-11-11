@@ -1,0 +1,70 @@
+name: CPU local inference probe (manual only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-inference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install CPU build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+          python -m pip install --disable-pip-version-check huggingface_hub
+
+      - name: Build llama.cpp for CPU
+        run: |
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp
+          cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build -DGGML_CUDA=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON
+          cmake --build /tmp/llama.cpp/build --config Release -j 2 --target llama-cli
+          git -C /tmp/llama.cpp rev-parse HEAD > llama_cpp_commit.txt
+
+      - name: Download small quantized model
+        run: |
+          python - <<'PY'
+          from huggingface_hub import hf_hub_download
+          path = hf_hub_download(
+              repo_id="Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+              filename="qwen2.5-0.5b-instruct-q4_k_m.gguf",
+              local_dir="/tmp/aurex-model",
+          )
+          print("Model downloaded:", path)
+          PY
+
+      - name: One bounded inference and receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p receipts
+          MODEL=/tmp/aurex-model/qwen2.5-0.5b-instruct-q4_k_m.gguf
+          sha256sum "$MODEL" > receipts/model.sha256
+          cp llama_cpp_commit.txt receipts/llama_cpp_commit.txt
+          /tmp/llama.cpp/build/bin/llama-cli \
+            -m "$MODEL" \
+            -p "Reply with the exact token AUREX_OK and nothing else." \
+            -n 24 -c 512 -t 2 --temp 0 --no-display-prompt \
+            > receipts/model-output.txt 2> receipts/runtime-stderr.txt
+          python - <<'PY'
+          from pathlib import Path
+          output = Path("receipts/model-output.txt").read_text()
+          if "AUREX_OK" not in output:
+              raise SystemExit("FAIL: no expected model-generated token")
+          print("PASS: model output contains AUREX_OK")
+          PY
+
+      - name: Upload evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpu-inference-probe-receipt
+          path: receipts/
+          if-no-files-found: warn
+          retention-days: 7
