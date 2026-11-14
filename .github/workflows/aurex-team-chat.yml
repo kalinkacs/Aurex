@@ -1,0 +1,60 @@
+name: Aurex six-agent group chat (experimental branch)
+on:
+  push:
+    branches:
+      - experiment/autonomous-lab-v1
+    paths:
+      - '.github/workflows/aurex-team-chat.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aurex-team-chat
+  cancel-in-progress: false
+jobs:
+  group-chat:
+    if: github.ref == 'refs/heads/experiment/autonomous-lab-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install offline model runtime
+        run: |
+          python -m pip install 'transformers==4.46.3' 'torch==2.5.1' 'huggingface_hub==0.26.5' 'accelerate==1.1.1'
+      - name: Download public instruction model weights
+        run: |
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(repo_id="Qwen/Qwen2.5-1.5B-Instruct", local_dir="/tmp/aurex-team-model", allow_patterns=["*.json","*.safetensors","*.txt","*.model","*.tiktoken"])
+          PY
+      - name: Prohibit network use by model loader
+        run: |
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
+          echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
+      - name: Real six-session four-round group conversation
+        run: |
+          python experiments/autonomous-lab-v1/team_chat.py --workspace /tmp/aurex-team-chat --model-dir /tmp/aurex-team-model --rounds 4 --max-tokens 130
+      - name: Collect raw peer conversation and evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/aurex-team-evidence
+          if [ -d /tmp/aurex-team-chat ]; then cp -a /tmp/aurex-team-chat /tmp/aurex-team-evidence/experiment; fi
+          printf '%s\n' 'Qwen2.5-1.5B-Instruct: six separate contexts, same model weights' 'Four turns per instance' 'Messages are automatically delivered by local software' 'No network, shell, GitHub permissions or credentials exposed to model' 'Do not mistake scripted delivery for self-discovered communication' > /tmp/aurex-team-evidence/README.txt
+      - name: Upload group conversation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurex-six-agent-chat-evidence
+          path: /tmp/aurex-team-evidence
+          retention-days: 14

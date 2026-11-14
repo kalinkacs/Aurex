@@ -1,0 +1,56 @@
+name: Aurex solo complete-problem challenge (experiment only)
+on:
+  push:
+    branches:
+      - experiment/autonomous-lab-v1
+    paths:
+      - '.github/workflows/aurex-solo-challenge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aurex-solo-challenge
+  cancel-in-progress: false
+jobs:
+  solo-challenge:
+    if: github.ref == 'refs/heads/experiment/autonomous-lab-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install runtime and obtain public model once
+        run: |
+          python -m pip install 'transformers==4.46.3' 'torch==2.5.1' 'huggingface_hub==0.26.5'
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(repo_id="Qwen/Qwen2.5-0.5B-Instruct", local_dir="/tmp/aurex-solo-model", allow_patterns=["*.json","*.safetensors","*.txt","*.model","*.tiktoken"])
+          PY
+      - name: Use cached model without external model calls
+        run: |
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
+          echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
+      - name: First instance — full challenge without prescribed solution
+        run: |
+          python experiments/autonomous-lab-v1/single_challenge.py --workspace /tmp/aurex-solo-attempt --model-dir /tmp/aurex-solo-model --steps 16
+      - name: Archive exact evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/aurex-solo-evidence
+          if [ -d /tmp/aurex-solo-attempt ]; then cp -a /tmp/aurex-solo-attempt /tmp/aurex-solo-evidence/attempt; fi
+          printf '%s\n' 'Model: Qwen/Qwen2.5-0.5B-Instruct' 'Session: instance-01 only' 'Data: 15 numeric observations' 'Limit: 16 tool proposals' 'No secrets, GitHub writes, shell tools or model API calls' > /tmp/aurex-solo-evidence/README.txt
+      - name: Upload research logs and outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurex-instance-01-full-challenge-evidence
+          path: /tmp/aurex-solo-evidence
+          retention-days: 14
