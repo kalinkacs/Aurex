@@ -1,0 +1,31 @@
+name: Iskra local independent inference
+on:
+  pull_request:
+    paths:
+      - 'iskra_local.py'
+      - '.github/workflows/iskra-local.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-inference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install local model dependencies
+        run: pip install 'torch>=2.4,<3' 'transformers>=4.45,<5' sentencepiece
+      - name: Run three independent local samples
+        env:
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: python iskra_local.py
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iskra-local-responses
+          path: iskra_local_results.json
+          if-no-files-found: warn
