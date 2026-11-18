@@ -67,6 +67,8 @@ jobs:
         run: python -m experiments.name_reflection_006
       - name: Challenge provisional leadership among six candidates
         run: python -m experiments.leadership_challenge_007
+      - name: Allocate roles and debate Maiyan versus Yiyan
+        run: python -m experiments.roles_and_challenge_008
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
