@@ -1,6 +1,12 @@
 name: Island Map Pilot 001 — real model comparison
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/island-map-pilot-001
+    paths:
+      - 'experiments/island_map_model_runner.py'
+      - '.github/workflows/island-map-model-pilot.yml'
 permissions:
   contents: read
   models: read
