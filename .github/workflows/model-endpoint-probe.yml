@@ -1,0 +1,27 @@
+name: Aurex model endpoint diagnostic
+on:
+  pull_request:
+    paths:
+      - 'experiments/model_endpoint_probe.py'
+      - '.github/workflows/model-endpoint-probe.yml'
+permissions:
+  contents: read
+  models: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe endpoint metadata
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m experiments.model_endpoint_probe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: model-endpoint-probe
+          path: receipts/model-endpoint-probe.json
