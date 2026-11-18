@@ -53,6 +53,8 @@ jobs:
         run: python -m experiments.island_map_local_runner
       - name: Run simpler disagreement-versus-agreement pilot
         run: python -m experiments.collaboration_not_agreement_002
+      - name: Run moderate wrong-peer challenge
+        run: python -m experiments.disagree_with_wrong_peer_003
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
