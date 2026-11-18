@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'experiments/island_map_local_runner.py'
+      - 'experiments/collaboration_not_agreement_002.py'
+      - 'experiments/collaboration_not_agreement_002.py'
       - '.github/workflows/island-map-local-pilot.yml'
   push:
     branches:
@@ -49,6 +51,8 @@ jobs:
           PY
       - name: Run six bounded local model calls
         run: python -m experiments.island_map_local_runner
+      - name: Run simpler disagreement-versus-agreement pilot
+        run: python -m experiments.collaboration_not_agreement_002
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
