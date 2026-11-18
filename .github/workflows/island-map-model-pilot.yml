@@ -1,0 +1,29 @@
+name: Island Map Pilot 001 — real model comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  models: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify fixture
+        run: python -m experiments.island_map_pilot
+      - name: Run six real model calls
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUREX_MODEL: openai/gpt-4o-mini
+        run: python -m experiments.island_map_model_runner
+      - name: Preserve model receipts even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: island-map-pilot-001-results
+          path: receipts/island-map-model-results.json
+          if-no-files-found: warn
