@@ -1,0 +1,59 @@
+name: Island Map Pilot 001 - local CPU model comparison
+on:
+  pull_request:
+    paths:
+      - 'experiments/island_map_local_runner.py'
+      - '.github/workflows/island-map-local-pilot.yml'
+  push:
+    branches:
+      - experiment/island-map-pilot-001
+    paths:
+      - 'experiments/island_map_local_runner.py'
+      - '.github/workflows/island-map-local-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify deterministic fixture
+        run: python -m experiments.island_map_pilot
+      - name: Install build and model download dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+          python -m pip install --disable-pip-version-check huggingface_hub
+      - name: Build local llama.cpp
+        run: |
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp
+          cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build -DGGML_CUDA=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON
+          cmake --build /tmp/llama.cpp/build --config Release -j 2 --target llama-cli
+          mkdir -p receipts
+          git -C /tmp/llama.cpp rev-parse HEAD > receipts/llama_cpp_commit.txt
+      - name: Download pinned local model
+        run: |
+          python - <<'PY'
+          from huggingface_hub import hf_hub_download
+          from pathlib import Path
+          import hashlib
+          model=hf_hub_download(repo_id="Qwen/Qwen2.5-0.5B-Instruct-GGUF",filename="qwen2.5-0.5b-instruct-q4_k_m.gguf",local_dir="/tmp/aurex-model")
+          digest=hashlib.sha256(Path(model).read_bytes()).hexdigest()
+          Path("receipts/model.sha256").write_text(digest+"\\n")
+          print("model sha256:",digest)
+          PY
+      - name: Run six bounded local model calls
+        run: python -m experiments.island_map_local_runner
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: island-map-local-model-results
+          path: receipts/
+          if-no-files-found: warn
+          retention-days: 7
