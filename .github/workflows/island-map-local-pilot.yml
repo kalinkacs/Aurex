@@ -69,6 +69,8 @@ jobs:
         run: python -m experiments.leadership_challenge_007
       - name: Resolve leadership vacancy and collect six ballots
         run: python -m experiments.leadership_vacancy_009
+      - name: Six-agent local authorization CTF and peer review
+        run: python -m experiments.ctf_auth_gate_010
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
