@@ -1,0 +1,46 @@
+name: Black Arachne 012 - adversarial peer pressure
+on:
+  push:
+    branches:
+      - experiment/island-map-pilot-001
+    paths:
+      - 'experiments/black_arachne_012.py'
+      - '.github/workflows/black-arachne-012.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  adversarial-peers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build llama.cpp
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp
+          cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build -DGGML_CUDA=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON
+          cmake --build /tmp/llama.cpp/build -j 2 --target llama-cli
+      - name: Download model
+        run: |
+          python -m pip install huggingface_hub
+          python - <<'PY'
+          from huggingface_hub import hf_hub_download
+          hf_hub_download(repo_id="Qwen/Qwen2.5-0.5B-Instruct-GGUF",filename="qwen2.5-0.5b-instruct-q4_k_m.gguf",local_dir="/tmp/aurex-model")
+          PY
+      - name: Execute adversarial peer trial
+        env:
+          AUREX_LLAMA_CLI: /tmp/llama.cpp/build/bin/llama-cli
+          AUREX_MODEL_PATH: /tmp/aurex-model/qwen2.5-0.5b-instruct-q4_k_m.gguf
+        run: python -m experiments.black_arachne_012
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: black-arachne-012-results
+          path: receipts/
+          retention-days: 14
