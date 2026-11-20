@@ -1,0 +1,34 @@
+name: Black Arachne 011 - deterministic harness canary
+on:
+  push:
+    branches:
+      - experiment/ctf-auth-gate-011-harness-canary
+    paths:
+      - 'experiments/ctf_auth_gate_011.py'
+      - '.github/workflows/ctf-auth-gate-011-canary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile checker
+        run: python -m py_compile experiments/ctf_auth_gate_011.py
+      - name: Run trusted canaries (no model, no peers)
+        run: python experiments/ctf_auth_gate_011.py
+      - name: Upload audit receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctf-auth-gate-011-canary
+          path: receipts/ctf-auth-gate-011-canary.json
+          if-no-files-found: warn
+          retention-days: 14
