@@ -1,10 +1,20 @@
-name: Black Arachne 011 - deterministic harness canary
+name: Black Arachne 011 - harness canaries and mock API
 on:
   push:
     branches:
       - experiment/ctf-auth-gate-011-harness-canary
     paths:
       - 'experiments/ctf_auth_gate_011.py'
+      - 'experiments/ctf_auth_gate_011_extract.py'
+      - 'experiments/ctf_auth_gate_011_safe_eval.py'
+      - 'experiments/ctf_auth_gate_011_live.py'
+      - '.github/workflows/ctf-auth-gate-011-canary.yml'
+  pull_request:
+    paths:
+      - 'experiments/ctf_auth_gate_011.py'
+      - 'experiments/ctf_auth_gate_011_extract.py'
+      - 'experiments/ctf_auth_gate_011_safe_eval.py'
+      - 'experiments/ctf_auth_gate_011_live.py'
       - '.github/workflows/ctf-auth-gate-011-canary.yml'
   workflow_dispatch:
 
@@ -20,15 +30,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile checker
-        run: python -m py_compile experiments/ctf_auth_gate_011.py
-      - name: Run trusted canaries (no model, no peers)
-        run: python experiments/ctf_auth_gate_011.py
-      - name: Upload audit receipt
+      - name: Compile all 011 modules
+        run: python -m py_compile experiments/ctf_auth_gate_011.py experiments/ctf_auth_gate_011_extract.py experiments/ctf_auth_gate_011_safe_eval.py experiments/ctf_auth_gate_011_live.py
+      - name: Verify trusted grading canaries
+        run: python -m experiments.ctf_auth_gate_011
+      - name: Verify strict JSON extraction canaries
+        run: python -m experiments.ctf_auth_gate_011_extract
+      - name: Verify safe AST evaluator
+        run: python -m experiments.ctf_auth_gate_011_safe_eval
+      - name: Verify end-to-end mock server responses
+        run: python -m experiments.ctf_auth_gate_011_live --mock-only
+      - name: Upload audit receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ctf-auth-gate-011-canary
-          path: receipts/ctf-auth-gate-011-canary.json
+          name: ctf-auth-gate-011-harness-canaries
+          path: |
+            receipts/ctf-auth-gate-011-canary.json
+            receipts/ctf-auth-gate-011-extraction.json
           if-no-files-found: warn
           retention-days: 14
