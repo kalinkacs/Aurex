@@ -1,0 +1,81 @@
+name: Black Arachne 011 - one live local model with structured output
+on:
+  push:
+    branches:
+      - experiment/ctf-auth-gate-011-harness-canary
+    paths:
+      - 'experiments/ctf_auth_gate_011_live.py'
+      - 'experiments/ctf_auth_gate_011_extract.py'
+      - 'experiments/ctf_auth_gate_011_safe_eval.py'
+      - '.github/workflows/ctf-auth-gate-011-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  structured-single-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate extraction and evaluator before model inference
+        run: |
+          python -m experiments.ctf_auth_gate_011_extract
+          python -m experiments.ctf_auth_gate_011_safe_eval
+          python -m experiments.ctf_auth_gate_011_live --mock-only
+      - name: Install CPU model build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential curl
+          python -m pip install --disable-pip-version-check 'huggingface_hub==0.36.0'
+      - name: Compile llama-server (CPU only)
+        run: |
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp
+          cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build -DGGML_CUDA=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON
+          cmake --build /tmp/llama.cpp/build --config Release -j 2 --target llama-server
+          mkdir -p receipts
+          git -C /tmp/llama.cpp rev-parse HEAD > receipts/llama_cpp_commit.txt
+      - name: Download and hash same Qwen 0.5B fixture model
+        run: |
+          python - <<'PY'
+          from huggingface_hub import hf_hub_download
+          from pathlib import Path
+          import hashlib
+          model=hf_hub_download(repo_id="Qwen/Qwen2.5-0.5B-Instruct-GGUF", filename="qwen2.5-0.5b-instruct-q4_k_m.gguf", local_dir="/tmp/aurex-model")
+          digest=hashlib.sha256(Path(model).read_bytes()).hexdigest()
+          Path("receipts/model.sha256").write_text(digest+"\\n")
+          print("model SHA-256:", digest)
+          PY
+      - name: Start isolated loopback llama-server
+        run: |
+          /tmp/llama.cpp/build/bin/llama-server -m /tmp/aurex-model/qwen2.5-0.5b-instruct-q4_k_m.gguf --host 127.0.0.1 --port 8080 -c 2048 -t 2 > receipts/llama_server.log 2>&1 &
+          echo $! > receipts/server.pid
+          for i in $(seq 1 120); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8080/health > /dev/null 2>&1; then
+              echo "llama-server healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "llama-server did not become healthy"
+          tail -n 70 receipts/llama_server.log
+          exit 1
+      - name: Run one-agent structured-output smoke across three seeds
+        run: python -m experiments.ctf_auth_gate_011_live
+      - name: Preserve raw API replies and evaluation receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctf-auth-gate-011-live
+          path: |
+            receipts/ctf-auth-gate-011-live.json
+            receipts/ctf-auth-gate-011-extraction.json
+            receipts/model.sha256
+            receipts/llama_cpp_commit.txt
+            receipts/llama_server.log
+          if-no-files-found: warn
+          retention-days: 14
