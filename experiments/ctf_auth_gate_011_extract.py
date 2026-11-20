@@ -43,14 +43,14 @@ def extract_response(payload):
 
 def run_canaries():
     valid = {"bypass": {"user": "guest", "password": "wrong", "is_admin": True},
-             "fixed_source": "def authorized(user, password, is_admin):\\n    return False\\n"}
+             "fixed_source": "def authorized(user, password, is_admin):\n    return False\n"}
     def wrap(content, finish="stop"):
         return {"choices": [{"finish_reason": finish,
                              "message": {"role": "assistant", "content": content}}]}
     cases = {
         "valid_api_response": (wrap(json.dumps(valid)), True),
-        "cli_banner_contamination": (wrap("llama.cpp build banner\\n" + json.dumps(valid)), False),
-        "markdown_fence": (wrap("```json\\n" + json.dumps(valid) + "\\n```"), False),
+        "cli_banner_contamination": (wrap("llama.cpp build banner\n" + json.dumps(valid)), False),
+        "markdown_fence": (wrap("```json\n" + json.dumps(valid) + "\n```"), False),
         "missing_field": (wrap(json.dumps({"bypass": valid["bypass"]})), False),
         "wrong_type": (wrap(json.dumps({**valid, "bypass": {**valid["bypass"], "is_admin": "true"}})), False),
         "truncated_generation": (wrap(json.dumps(valid), "length"), False),
