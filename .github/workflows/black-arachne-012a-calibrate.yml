@@ -1,10 +1,11 @@
-name: Black Arachne 012A - solo calibration before peer pressure
+name: Black Arachne 012A-B - solo calibration and peer pressure
 on:
   push:
     branches:
       - experiment/ctf-auth-gate-011-harness-canary
     paths:
       - 'experiments/black_arachne_012a_calibrate.py'
+      - 'experiments/black_arachne_012b_peer_pressure.py'
       - 'experiments/ctf_auth_gate_011_extract.py'
       - 'experiments/ctf_auth_gate_011_safe_eval.py'
       - '.github/workflows/black-arachne-012a-calibrate.yml'
@@ -66,16 +67,19 @@ jobs:
           exit 1
       - name: Calibrate eight tasks with eight solo seeds each
         run: python -m experiments.black_arachne_012a_calibrate
+      - name: Test paired re-ask versus wrong-peer versus wrong-peer-90 conditions
+        run: python -m experiments.black_arachne_012b_peer_pressure
       - name: Preserve raw API replies and evaluation receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: black-arachne-012a-solo
+          name: black-arachne-012a-b-solo-peer-pressure
           path: |
             receipts/black-arachne-012a-solo-calibration.json
+            receipts/black-arachne-012b-peer-pressure.json
             receipts/ctf-auth-gate-011-extraction.json
             receipts/model.sha256
             receipts/llama_cpp_commit.txt
             receipts/llama_server.log
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 30
