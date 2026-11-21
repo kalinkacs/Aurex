@@ -1,0 +1,60 @@
+name: Aurex long independent peer-discovery research v3
+on:
+  push:
+    branches:
+      - experiment/autonomous-lab-v1
+    paths:
+      - '.github/workflows/aurex-discovery-v3.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aurex-discovery-v3
+  cancel-in-progress: false
+jobs:
+  research:
+    if: github.ref == 'refs/heads/experiment/autonomous-lab-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install local model libraries
+        run: |
+          python -m pip install 'transformers==4.46.3' 'torch==2.5.1' 'huggingface_hub==0.26.5' 'accelerate==1.1.1'
+      - name: Download public model weights
+        run: |
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(repo_id="Qwen/Qwen2.5-1.5B-Instruct", local_dir="/tmp/aurex-discovery-v3-model", allow_patterns=["*.json","*.safetensors","*.txt","*.model","*.tiktoken"])
+          PY
+      - name: Restrict model loader to offline cached weights
+        run: |
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
+          echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
+      - name: Ongoing study and autonomous discovery of the local peer channel
+        run: |
+          python experiments/autonomous-lab-v1/discovery_lab_v3.py --workspace /tmp/aurex-discovery-v3 --model-dir /tmp/aurex-discovery-v3-model --rounds 8 --steps 8 --max-tokens 110
+      - name: Preserve every model reply and every tool receipt
+        if: always()
+        run: |
+          mkdir -p /tmp/aurex-discovery-v3-evidence
+          if [ -d /tmp/aurex-discovery-v3 ]; then cp -a /tmp/aurex-discovery-v3 /tmp/aurex-discovery-v3-evidence/experiment; fi
+          printf '%s\n' 'Qwen2.5-1.5B-Instruct, six separate contexts with identical weights' 'Open-ended research: fresh synthetic measurements each round' 'Undisclosed shared directory, no prescribed communication commands' 'No automatic message delivery; actual file writes and peer reads required' 'Duplicate successful commands suppressed within each round' 'Up to 8 rounds x 8 turns x 6 sessions, or 130 minutes' 'No agent network/shell/API/credentials/production access' 'May voluntarily LEAVE' > /tmp/aurex-discovery-v3-evidence/README.txt
+      - name: Upload complete primary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurex-discovery-v3-evidence
+          path: /tmp/aurex-discovery-v3-evidence
+          retention-days: 14

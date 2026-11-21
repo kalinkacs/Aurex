@@ -1,0 +1,104 @@
+name: Aurex 48-hour six-station research (checkpointed)
+on:
+  push:
+    branches:
+      - experiment/autonomous-lab-v1
+    paths:
+      - '.github/workflows/aurex-48h-study.yml'
+      - 'experiments/autonomous-lab-v1/48h-heartbeat.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: aurex-48h-study
+  cancel-in-progress: false
+jobs:
+  research-installment:
+    if: github.ref == 'refs/heads/experiment/autonomous-lab-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Checkout experimental source with no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: source
+      - name: Checkout separate checkpoint branch
+        uses: actions/checkout@v4
+        with:
+          ref: experiment/aurex-48h-state
+          path: checkpoint
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Restore saved six-station working state
+        run: |
+          mkdir -p /tmp/aurex-48h
+          if [ -d checkpoint/experiments/autonomous-lab-v1/48h-state ]; then
+            cp -a checkpoint/experiments/autonomous-lab-v1/48h-state/. /tmp/aurex-48h/
+          fi
+      - name: Cache model weights between installments
+        uses: actions/cache@v4
+        with:
+          path: /tmp/aurex-48h-model
+          key: aurex-qwen-1p5b-instruct-cache-v1
+      - name: Install model runtime
+        run: |
+          python -m pip install 'transformers==4.46.3' 'torch==2.5.1' 'huggingface_hub==0.26.5' 'accelerate==1.1.1'
+      - name: Download public model weights only if not cached
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from huggingface_hub import snapshot_download
+          root = Path("/tmp/aurex-48h-model")
+          if not (root / "config.json").exists() or not list(root.glob("*.safetensors")):
+              snapshot_download(
+                  repo_id="Qwen/Qwen2.5-1.5B-Instruct",
+                  local_dir=str(root),
+                  allow_patterns=["*.json", "*.safetensors", "*.txt", "*.model", "*.tiktoken"])
+          print("Model weights ready; agent inference will use local files only.")
+          PY
+      - name: Restrict agent model loader to offline mode
+        run: |
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
+          echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
+      - name: Continue all six independent researchers with preserved evidence
+        run: |
+          python source/experiments/autonomous-lab-v1/run_48h_checkpoint.py \
+            --workspace /tmp/aurex-48h \
+            --model-dir /tmp/aurex-48h-model \
+            --deadline-utc '2026-11-09T07:09:12+00:00' \
+            --rounds 2 --steps 7 --tokens 110
+      - name: Save checkpoint to isolated state branch
+        run: |
+          mkdir -p checkpoint/experiments/autonomous-lab-v1/48h-state
+          rsync -a --delete /tmp/aurex-48h/ checkpoint/experiments/autonomous-lab-v1/48h-state/
+          git -C checkpoint config user.name "aurex-experiment-bot"
+          git -C checkpoint config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C checkpoint add -A experiments/autonomous-lab-v1/48h-state
+          if ! git -C checkpoint diff --cached --quiet; then
+            git -C checkpoint commit -m "checkpoint: preserve six researchers and their research events"
+            git -C checkpoint push origin HEAD:refs/heads/experiment/aurex-48h-state
+          else
+            echo "No new observations to checkpoint."
+          fi
+      - name: Preserve a downloadable snapshot even if checkpointing fails
+        if: always()
+        run: |
+          mkdir -p /tmp/aurex-48h-artifact
+          if [ -d /tmp/aurex-48h ]; then cp -a /tmp/aurex-48h /tmp/aurex-48h-artifact/experiment; fi
+          printf '%s\n' 'Experiment: 48-hour wall-clock six-station research' 'Each station retains private data and tool receipts across successful hourly installments' 'Hidden local exchange directory requires discovery; no automatic peer messaging' 'Agent never receives GitHub credentials or shell/network tools' 'The repository default branch is unchanged' > /tmp/aurex-48h-artifact/README.txt
+      - name: Upload hourly evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurex-48h-hourly-evidence
+          path: /tmp/aurex-48h-artifact
+          retention-days: 14
