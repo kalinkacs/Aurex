@@ -8,7 +8,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
-from aurex_http_diagnostics import decode_json_response
+from aurex_http_diagnostics import decode_json_response, status_class
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -44,7 +44,23 @@ def request_json(url, token, payload=None):
             raw = response.read()
             return decode_json_response(raw, response.status, response.headers.get('Content-Type', ''), stage)
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f'AUREX_HTTP_FAILURE stage={stage} status={exc.code}') from None
+        # One run, one receipt: name the failure without holding the words that
+        # failed. The body is read to be counted, never printed.
+        try:
+            raw = exc.read() or b""
+        except (OSError, AttributeError):
+            raw = b""
+        finally:
+            try:
+                exc.close()
+            except Exception:
+                pass
+        media_type = (exc.headers.get('Content-Type') or 'none').split(';', 1)[0].strip() or 'none'
+        raise RuntimeError(
+            f"AUREX_HTTP_FAILURE stage={stage} status={exc.code} "
+            f"status_class={status_class(exc.code)} content_type={media_type} "
+            f"bytes={len(raw)} type={type(exc).__name__}"
+        ) from None
 
 def issue_number(event):
     if event.get("action") not in ("opened", "reopened", "labeled"):
