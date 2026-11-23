@@ -1,0 +1,30 @@
+name: Iskra independent model experiment
+on:
+  pull_request:
+    paths:
+      - 'iskra_independent.py'
+      - '.github/workflows/iskra-independent.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  models: read
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run independent model instances
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python iskra_independent.py
+      - name: Save response evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iskra-independent-results
+          path: iskra_independent_results.json
+          if-no-files-found: warn
