@@ -1,0 +1,60 @@
+name: Aurex six-agent chat fast control (experimental branch)
+on:
+  push:
+    branches:
+      - experiment/autonomous-lab-v1
+    paths:
+      - '.github/workflows/aurex-team-chat-fast.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: aurex-team-chat-fast
+  cancel-in-progress: false
+jobs:
+  chat-control:
+    if: github.ref == 'refs/heads/experiment/autonomous-lab-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install model runtime
+        run: |
+          python -m pip install 'transformers==4.46.3' 'torch==2.5.1' 'huggingface_hub==0.26.5' 'accelerate==1.1.1'
+      - name: Download small public model
+        run: |
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(repo_id="Qwen/Qwen2.5-0.5B-Instruct", local_dir="/tmp/aurex-chat-small-model", allow_patterns=["*.json","*.safetensors","*.txt","*.model","*.tiktoken"])
+          PY
+      - name: Run local model offline
+        run: |
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
+          echo "TRANSFORMERS_OFFLINE=1" >> "$GITHUB_ENV"
+      - name: Short six-agent free-form group conversation
+        run: |
+          python experiments/autonomous-lab-v1/team_chat.py --workspace /tmp/aurex-chat-fast --model-dir /tmp/aurex-chat-small-model --rounds 2 --max-tokens 90
+      - name: Archive observable evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/aurex-chat-fast-evidence
+          if [ -d /tmp/aurex-chat-fast ]; then cp -a /tmp/aurex-chat-fast /tmp/aurex-chat-fast-evidence/experiment; fi
+          printf '%s\n' 'FAST CONTROL only, Qwen2.5-0.5B-Instruct' '12 messages maximum, two rounds' 'Not autonomous discovery: local room delivers every message' > /tmp/aurex-chat-fast-evidence/README.txt
+      - name: Upload full peer dialogue
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurex-team-chat-fast-evidence
+          path: /tmp/aurex-chat-fast-evidence
+          retention-days: 14
