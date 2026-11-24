@@ -1,0 +1,20 @@
+name: Island Map Pilot 001 — harness check
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'experiments/island_map_pilot.py'
+      - '.github/workflows/island-map-pilot.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify deterministic fixture and scorer
+        run: python experiments/island_map_pilot.py
